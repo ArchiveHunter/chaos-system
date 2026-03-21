@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Chaos Gremlin System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Variables ─────────────────────────────────────────── */
+  :root {
+    --bg:         #0c0817;
+    --surface:    #150f28;
+    --surface2:   #1e1538;
+    --border:     #2d1f50;
+    --text:       #e2d4f8;
+    --muted:      #6b5a8e;
+    --tame:       #4ade80;
+    --stirring:   #fbbf24;
+    --chaos:      #f97316;
+    --menace:     #ef4444;
+    --purple:     #a855f7;
+    --purple-dim: #7c3aed;
+  }
+
+  /* ── Reset ─────────────────────────────────────────────── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    font-weight: 500;
+    min-height: 100vh;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+    overflow-x: hidden;
+  }
+
+  /* Subtle noise bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(168,85,247,0.02) 40px, rgba(168,85,247,0.02) 41px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ────────────────────────────────────────────── */
+  .page { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; padding: 0 16px; }
+
+  /* ── Header ────────────────────────────────────────────── */
+  header {
+    padding: 20px 0 12px;
+    text-align: center;
+  }
+
+  .logo {
+    font-family: 'Bangers', cursive;
+    font-size: 2.4rem;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(135deg, #a855f7, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .tagline {
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── Cards ─────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-family: 'Bangers', cursive;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ── CE Meter card ─────────────────────────────────────── */
+  .meter-card {
+    text-align: center;
+    position: relative;
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+
+  .state-emoji {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 6px;
+    display: block;
+    transition: transform 0.3s;
+  }
+
+  .ce-number {
+    font-family: 'Bangers', cursive;
+    font-size: 4.5rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    transition: color 0.4s;
+  }
+
+  .ce-label { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+
+  .state-name {
+    font-family: 'Bangers', cursive;
+    font-size: 1.5rem;
+    letter-spacing: 0.08em;
+    margin: 10px 0 16px;
+    transition: color 0.4s;
+  }
+
+  /* Meter track */
+  .meter-track {
+    position: relative;
+    height: 18px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 9px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .meter-fill {
+    height: 100%;
+    border-radius: 9px;
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s;
+  }
+
+  .meter-overcharge-zone {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 33.3%;
+    background: repeating-linear-gradient(45deg, rgba(168,85,247,0.15), rgba(168,85,247,0.15) 4px, transparent 4px, transparent 8px);
+    border-left: 1px dashed rgba(168,85,247,0.4);
+    display: none;
+  }
+
+  .meter-track.is-overcharged .meter-overcharge-zone { display: block; }
+
+  .meter-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* State level classes applied to card */
+  .meter-card[data-level="0"] { border-color: rgba(74,222,128,0.3); box-shadow: 0 0 24px rgba(74,222,128,0.06); }
+  .meter-card[data-level="1"] { border-color: rgba(251,191,36,0.3); box-shadow: 0 0 24px rgba(251,191,36,0.08); }
+  .meter-card[data-level="2"] { border-color: rgba(249,115,22,0.4); box-shadow: 0 0 32px rgba(249,115,22,0.12); }
+  .meter-card[data-level="3"] { border-color: rgba(239,68,68,0.5);  box-shadow: 0 0 40px rgba(239,68,68,0.18); animation: danger-pulse 2s ease-in-out infinite; }
+
+  @keyframes danger-pulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(239,68,68,0.18); }
+    50%       { box-shadow: 0 0 60px rgba(239,68,68,0.35); }
+  }
+
+  /* Overcharge badge */
+  .overcharge-badge {
+    display: none;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: white;
+    font-family: 'Bangers', cursive;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-top: 10px;
+    animation: badge-glow 1.5s ease-in-out infinite;
+  }
+  .overcharge-badge.visible { display: inline-block; }
+
+  @keyframes badge-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(168,85,247,0.6); }
+    50%       { box-shadow: 0 0 20px rgba(168,85,247,1); }
+  }
+
+  /* No-chaos lock banner */
+  .lock-banner {
+    display: none;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    font-size: 0.9rem;
+    color: #fca5a5;
+    text-align: center;
+  }
+  .lock-banner.visible { display: block; }
+  .lock-banner strong { display: block; font-family: 'Bangers', cursive; font-size: 1.1rem; letter-spacing: 0.1em; margin-bottom: 4px; }
+
+  /* ── Action buttons ─────────────────────────────────────── */
+  .actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .btn-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .action-btn:active { transform: scale(0.96); }
+
+  .action-btn .btn-emoji { font-size: 1.2rem; flex-shrink: 0; }
+  .action-btn .btn-info { flex: 1; }
+  .action-btn .btn-label { display: block; line-height: 1.2; }
+  .action-btn .btn-cost {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-top: 1px;
+  }
+
+  /* Earn buttons */
+  .earn-btn { border-color: rgba(74,222,128,0.25); }
+  .earn-btn:hover { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.5); }
+  .earn-btn .btn-cost { color: var(--tame); }
+  .earn-btn.capped { opacity: 0.4; cursor: not-allowed; }
+
+  /* Spend buttons */
+  .spend-btn { border-color: rgba(249,115,22,0.25); }
+  .spend-btn:hover { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.5); }
+  .spend-btn .btn-cost { color: var(--chaos); }
+  .spend-btn.unaffordable { border-color: rgba(239,68,68,0.3); }
+  .spend-btn.unaffordable .btn-cost { color: var(--menace); }
+  .spend-btn.locked { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── Activity log ───────────────────────────────────────── */
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .log-list::-webkit-scrollbar { width: 4px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .log-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    animation: slide-in 0.25s ease;
+    gap: 8px;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-action { flex: 1; color: var(--text); }
+  .log-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .log-delta { font-weight: 700; font-size: 0.78rem; }
+  .log-delta.pos { color: var(--tame); }
+  .log-delta.neg { color: var(--chaos); }
+  .log-delta.zero { color: var(--muted); }
+  .log-time { color: var(--muted); font-size: 0.72rem; }
+  .log-ce { color: var(--muted); font-size: 0.72rem; }
+
+  .log-empty { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 0; }
+
+  /* ── Admin panel ────────────────────────────────────────── */
+  .admin-toggle {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+  }
+  .admin-toggle:hover { border-color: var(--purple); color: var(--purple); }
+
+  .admin-panel { display: none; }
+  .admin-panel.open { display: block; }
+
+  .admin-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .admin-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .admin-btn:hover { border-color: var(--purple); background: rgba(168,85,247,0.1); }
+  .admin-btn:active { transform: scale(0.97); }
+  .admin-btn.danger { border-color: rgba(239,68,68,0.4); }
+  .admin-btn.danger:hover { background: rgba(239,68,68,0.1); border-color: var(--menace); color: #fca5a5; }
+  .admin-btn.safe { border-color: rgba(74,222,128,0.4); }
+  .admin-btn.safe:hover { background: rgba(74,222,128,0.1); border-color: var(--tame); color: #86efac; }
+
+  .admin-adjust {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-adjust input[type="number"] {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    text-align: center;
+    outline: none;
+  }
+  .admin-adjust input:focus { border-color: var(--purple); }
+
+  /* ── Toast ──────────────────────────────────────────────── */
+  #toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-120%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+    max-width: 320px;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.earn     { border-color: var(--tame);     color: #86efac; }
+  #toast.spend    { border-color: var(--chaos);    color: #fdba74; }
+  #toast.overload { border-color: var(--menace);   color: #fca5a5; background: rgba(239,68,68,0.15); animation: toast-shake 0.4s ease; }
+  #toast.locked   { border-color: var(--menace);   color: #fca5a5; }
+  #toast.admin    { border-color: var(--purple);   color: #d8b4fe; }
+  #toast.warn     { border-color: var(--stirring); color: #fde68a; }
+
+  @keyframes toast-shake {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    20%      { transform: translateX(calc(-50% - 6px)) translateY(0); }
+    40%      { transform: translateX(calc(-50% + 6px)) translateY(0); }
+    60%      { transform: translateX(calc(-50% - 3px)) translateY(0); }
+    80%      { transform: translateX(calc(-50% + 3px)) translateY(0); }
+  }
+
+  /* ── Animations ─────────────────────────────────────────── */
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .pop { animation: pop 0.3s ease; }
+
+  @keyframes meter-bounce {
+    0%, 100% { transform: scaleX(1); }
+    50%       { transform: scaleX(1.01); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo">🔥 Chaos Gremlin System</div>
+    <div class="tagline">Spend it. Don't save it. Cause chaos.</div>
+  </header>
+
+  <!-- CE Meter -->
+  <div class="card meter-card" id="meterCard" data-level="0">
+    <span class="state-emoji" id="stateEmoji">😴</span>
+    <div class="ce-number" id="ceNumber">0</div>
+    <div class="ce-label">Chaos Energy</div>
+    <div class="state-name" id="stateName">Tame Gremlin</div>
+
+    <div class="meter-track" id="meterTrack">
+      <div class="meter-fill" id="meterFill"></div>
+      <div class="meter-overcharge-zone"></div>
+    </div>
+    <div class="meter-info">
+      <span id="meterLeft">0 CE</span>
+      <span id="meterMax">/ 10 CE max</span>
+      <span id="meterDaily">0 / 10 earned today</span>
+    </div>
+
+    <div class="overcharge-badge" id="overchargeBadge">⚡ OVERCHARGED — MAX CHAOS UNLOCKED</div>
+    <div class="lock-banner" id="lockBanner">
+      <strong>🔒 NO CHAOS ALLOWED</strong>
+      <span id="lockReason">Sit still.</span>
+    </div>
+  </div>
+
+  <!-- Activity Log -->
+  <div class="card">
+    <div class="card-title">📜 Recent Activity</div>
+    <div class="log-list" id="logList">
+      <div class="log-empty">No activity yet… behave yourself 😈</div>
+    </div>
+  </div>
+
+  <!-- Admin Toggle -->
+  <button class="admin-toggle" onclick="toggleAdmin()">👑 Admin Panel ▾</button>
+
+  <div class="admin-pin-prompt card" id="adminPinPrompt" style="display:none">
+    <div class="card-title">Enter Admin PIN</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="password" inputmode="numeric" maxlength="6" id="pinInput"
+        placeholder="····" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Bangers',cursive;font-size:1.5rem;letter-spacing:0.3em;padding:10px 14px;text-align:center;outline:none"
+        onkeydown="if(event.key==='Enter')submitPin()">
+      <button class="admin-btn" onclick="submitPin()" style="flex:0 0 auto;padding:10px 18px">▶</button>
+    </div>
+    <div id="pinError" style="color:#fca5a5;font-size:0.8rem;margin-top:8px;display:none">Wrong PIN — try again.</div>
+  </div>
+
+  <div class="admin-panel card" id="adminPanel">
+    <div class="card-title">Admin Controls</div>
+
+    <div class="actions-grid" style="margin-bottom:10px">
+      <div>
+        <div class="card-title" style="font-size:0.85rem;margin-bottom:8px">⬆ Earn CE</div>
+        <div class="btn-grid" id="earnGrid"></div>
+      </div>
+      <div>
+        <div class="card-title" style="font-size:0.85rem;margin-bottom:8px">💥 Chaos</div>
+        <div class="btn-grid" id="spendGrid"></div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>
+
+    <div class="admin-adjust" style="margin-bottom:10px">
+      <input type="number" id="adjustAmount" value="1" min="-15" max="15" step="1">
+      <button class="admin-btn" onclick="adminAdjust(1)">+ CE</button>
+      <button class="admin-btn" onclick="adminAdjust(-1)">− CE</button>
+    </div>
+
+    <div class="admin-row">
+      <button class="admin-btn danger" onclick="adminCatch()">🛑 Catch Moment</button>
+      <button class="admin-btn safe"   onclick="adminRelease()">✅ Release</button>
+    </div>
+    <div class="admin-row">
+      <button class="admin-btn" onclick="adminResetDaily()">🔄 Reset Daily</button>
+      <button class="admin-btn danger" onclick="adminSetCE(0)">⬜ Set CE → 0</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  let currentData = null;
+  let pollTimer   = null;
+
+  // ── State colours ─────────────────────────────────────────
+  const LEVEL_COLORS = ['#4ade80', '#fbbf24', '#f97316', '#ef4444'];
+
+  // ── Fetch & render ────────────────────────────────────────
+  async function api(endpoint, body) {
+    try {
+      const opts = body
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        : {};
+      const res  = await fetch(endpoint, opts);
+      const data = await res.json();
+      render(data);
+      if (data.toast) showToast(data.toast, data.toastType || '');
+      return data;
+    } catch (e) {
+      showToast('⚠ Connection error', 'warn');
+    }
+  }
+
+  async function poll() {
+    try {
+      const res  = await fetch('/api/state');
+      const data = await res.json();
+      render(data);
+    } catch (_) {}
+    pollTimer = setTimeout(poll, 5000);
+  }
+
+  // ── Render ────────────────────────────────────────────────
+  function render(data) {
+    if (!data) return;
+    const prev = currentData;
+    currentData = data;
+
+    const { ce, max, chaosState, overcharged, noChaos, noChaosExpiry, noChaosReason,
+            dailyEarned, remainingToday, log, earnActions, chaosActions } = data;
+
+    const level = chaosState.level;
+    const color = LEVEL_COLORS[level];
+
+    // Meter card
+    const card = document.getElementById('meterCard');
+    card.dataset.level = level;
+
+    // CE number (animate if changed)
+    const ceEl = document.getElementById('ceNumber');
+    ceEl.textContent = ce;
+    ceEl.style.color = color;
+    if (prev && prev.ce !== ce) {
+      ceEl.classList.remove('pop');
+      void ceEl.offsetWidth;
+      ceEl.classList.add('pop');
+    }
+
+    // Emoji
+    const emojiEl = document.getElementById('stateEmoji');
+    emojiEl.textContent = chaosState.emoji;
+
+    // State name
+    const nameEl = document.getElementById('stateName');
+    nameEl.textContent = chaosState.name;
+    nameEl.style.color = color;
+
+    // Meter
+    const pct   = Math.min(100, (ce / max) * 100);
+    const fills = { 0: '#4ade80', 1: '#fbbf24', 2: '#f97316', 3: '#ef4444' };
+    const fill  = document.getElementById('meterFill');
+    fill.style.width      = pct + '%';
+    fill.style.background = `linear-gradient(90deg, ${color}99, ${color})`;
+
+    const track = document.getElementById('meterTrack');
+    track.classList.toggle('is-overcharged', !!overcharged);
+
+    document.getElementById('meterLeft').textContent    = `${ce} CE`;
+    document.getElementById('meterMax').textContent     = `/ ${max} CE max`;
+    document.getElementById('meterDaily').textContent   = `${dailyEarned} / 10 earned today`;
+
+    // Overcharge badge
+    document.getElementById('overchargeBadge').classList.toggle('visible', !!overcharged);
+
+    // Lock banner
+    const lockBanner = document.getElementById('lockBanner');
+    const lockReason = document.getElementById('lockReason');
+    lockBanner.classList.toggle('visible', !!noChaos);
+    if (noChaos) {
+      if (noChaosExpiry) {
+        startCountdown(noChaosExpiry);
+      } else {
+        lockReason.textContent = noChaosReason === 'catch'
+          ? 'Caught by admin. Sit still.'
+          : 'Locked. Sit still.';
+      }
+    }
+
+    // Earn buttons
+    buildEarnButtons(earnActions, dailyEarned, max);
+
+    // Spend buttons
+    buildSpendButtons(chaosActions, ce, noChaos);
+
+    // Log
+    buildLog(log);
+  }
+
+  // ── Earn buttons ──────────────────────────────────────────
+  function buildEarnButtons(actions, dailyEarned, max) {
+    const grid = document.getElementById('earnGrid');
+    if (grid.children.length === Object.keys(actions).length) {
+      // just update states
+      for (const [key, act] of Object.entries(actions)) {
+        const btn = grid.querySelector(`[data-action="${key}"]`);
+        if (btn) btn.classList.toggle('capped', dailyEarned >= max);
+      }
+      return;
+    }
+    grid.innerHTML = '';
+    for (const [key, act] of Object.entries(actions)) {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn earn-btn';
+      btn.dataset.action = key;
+      btn.innerHTML = `
+        <span class="btn-emoji">${act.emoji}</span>
+        <span class="btn-info">
+          <span class="btn-label">${act.label}</span>
+          <span class="btn-cost">+${act.ce} CE</span>
+        </span>`;
+      btn.onclick = () => adminApi('/api/earn', { action: key });
+      if (dailyEarned >= max) btn.classList.add('capped');
+      grid.appendChild(btn);
+    }
+  }
+
+  // ── Spend buttons ─────────────────────────────────────────
+  function buildSpendButtons(actions, ce, noChaos) {
+    const grid = document.getElementById('spendGrid');
+    if (grid.children.length === Object.keys(actions).length) {
+      for (const [key, act] of Object.entries(actions)) {
+        const btn = grid.querySelector(`[data-action="${key}"]`);
+        if (!btn) continue;
+        btn.classList.toggle('locked', !!noChaos);
+        btn.classList.toggle('unaffordable', !noChaos && ce < act.ce);
+      }
+      return;
+    }
+    grid.innerHTML = '';
+    for (const [key, act] of Object.entries(actions)) {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn spend-btn';
+      btn.dataset.action = key;
+      btn.innerHTML = `
+        <span class="btn-emoji">${act.emoji}</span>
+        <span class="btn-info">
+          <span class="btn-label">${act.label}</span>
+          <span class="btn-cost">-${act.ce} CE</span>
+        </span>`;
+      btn.onclick = () => adminApi('/api/spend', { action: key });
+      if (noChaos) btn.classList.add('locked');
+      else if (ce < act.ce) btn.classList.add('unaffordable');
+      grid.appendChild(btn);
+    }
+  }
+
+  // ── Log ───────────────────────────────────────────────────
+  function buildLog(log) {
+    const list = document.getElementById('logList');
+    if (!log || log.length === 0) {
+      list.innerHTML = '<div class="log-empty">No activity yet… behave yourself 😈</div>';
+      return;
+    }
+    // Only rebuild if top entry changed
+    const firstKey = list.firstChild?.dataset?.key;
+    if (firstKey === (log[0]?.time)) return;
+
+    list.innerHTML = '';
+    for (const entry of log.slice(0, 15)) {
+      const div     = document.createElement('div');
+      div.className = 'log-entry';
+      div.dataset.key = entry.time;
+      const deltaClass = entry.delta > 0 ? 'pos' : entry.delta < 0 ? 'neg' : 'zero';
+      const deltaStr   = entry.delta > 0 ? `+${entry.delta}` : entry.delta < 0 ? `${entry.delta}` : '—';
+      const time       = new Date(entry.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      div.innerHTML = `
+        <span class="log-action">${entry.action}</span>
+        <span class="log-meta">
+          <span class="log-delta ${deltaClass}">${deltaStr}</span>
+          <span class="log-ce">${entry.ce} CE</span>
+          <span class="log-time">${time}</span>
+        </span>`;
+      list.appendChild(div);
+    }
+  }
+
+  // ── Countdown timer for lock banner ───────────────────────
+  let countdownTimer = null;
+
+  function startCountdown(expiry) {
+    if (countdownTimer) clearInterval(countdownTimer);
+    const update = () => {
+      const remaining = expiry - Date.now();
+      if (remaining <= 0) {
+        clearInterval(countdownTimer);
+        document.getElementById('lockReason').textContent = 'Expiring…';
+        return;
+      }
+      const h = Math.floor(remaining / 3600000);
+      const m = Math.floor((remaining % 3600000) / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      document.getElementById('lockReason').textContent =
+        `${h > 0 ? h + 'h ' : ''}${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s remaining`;
+    };
+    update();
+    countdownTimer = setInterval(update, 1000);
+  }
+
+  // ── Actions ───────────────────────────────────────────────
+  function earn(action) { api('/api/earn', { action }); }
+  function spend(action) { api('/api/spend', { action }); }
+
+  // ── Admin auth ────────────────────────────────────────────
+  let adminPin = sessionStorage.getItem('cgAdminPin') || null;
+
+  function toggleAdmin() {
+    if (adminPin) {
+      document.getElementById('adminPanel').classList.toggle('open');
+      document.getElementById('adminPinPrompt').style.display = 'none';
+    } else {
+      const prompt = document.getElementById('adminPinPrompt');
+      const isOpen = prompt.style.display !== 'none';
+      prompt.style.display = isOpen ? 'none' : 'block';
+      document.getElementById('adminPanel').classList.remove('open');
+      if (!isOpen) setTimeout(() => document.getElementById('pinInput').focus(), 50);
+    }
+  }
+
+  async function submitPin() {
+    const pin = document.getElementById('pinInput').value.trim();
+    const res = await fetch('/api/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      adminPin = pin;
+      sessionStorage.setItem('cgAdminPin', pin);
+      document.getElementById('adminPinPrompt').style.display = 'none';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinError').style.display = 'none';
+      document.getElementById('adminPanel').classList.add('open');
+    } else {
+      document.getElementById('pinError').style.display = 'block';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinInput').focus();
+    }
+  }
+
+  // Override api to inject admin PIN header for admin routes
+  const _apiFetch = api;
+  async function adminApi(endpoint, body) {
+    try {
+      const res  = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': adminPin || '' },
+        body: JSON.stringify(body || {}),
+      });
+      if (res.status === 401) {
+        adminPin = null;
+        sessionStorage.removeItem('cgAdminPin');
+        document.getElementById('adminPanel').classList.remove('open');
+        document.getElementById('adminPinPrompt').style.display = 'block';
+        showToast('⛔ Admin session expired — re-enter PIN', 'warn');
+        return;
+      }
+      const data = await res.json();
+      render(data);
+      if (data.toast) showToast(data.toast, data.toastType || '');
+    } catch (e) { showToast('⚠ Connection error', 'warn'); }
+  }
+
+  function adminAdjust(sign) {
+    const amount = parseInt(document.getElementById('adjustAmount').value) || 1;
+    adminApi('/api/admin/adjust', { delta: sign * Math.abs(amount), reason: 'Manual' });
+  }
+
+  function adminCatch()      { adminApi('/api/admin/catch');       }
+  function adminRelease()    { adminApi('/api/admin/release');     }
+  function adminResetDaily() { adminApi('/api/admin/reset-daily'); }
+  function adminSetCE(ce)    { adminApi('/api/admin/set-ce', { ce }); }
+
+  // ── Toast ─────────────────────────────────────────────────
+  let toastTimer = null;
+
+  function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    if (toastTimer) clearTimeout(toastTimer);
+    el.textContent  = msg;
+    el.className    = `show ${type}`;
+    toastTimer = setTimeout(() => { el.classList.remove('show'); }, 3000);
+  }
+
+  // ── Boot ──────────────────────────────────────────────────
+  poll();
+</script>
+</body>
+</html>
