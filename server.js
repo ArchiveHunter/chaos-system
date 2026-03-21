@@ -31,18 +31,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Apply to all /api/admin/* except /auth
 app.use('/api/admin', (req, res, next) => {
   if (req.path === '/auth') return next();
   requireAdmin(req, res, next);
 });
 
-const DATA_DIR   = path.join(__dirname, 'data');
-const STATE_FILE = path.join(DATA_DIR, 'state.json');
+// ── Data files ────────────────────────────────────────────────────────────────
 
-// ── Action definitions ────────────────────────────────────────────────────────
+const DATA_DIR      = path.join(__dirname, 'data');
+const STATE_FILE    = path.join(DATA_DIR, 'state.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
-const EARN_ACTIONS = {
+// ── Action definitions (defaults) ────────────────────────────────────────────
+
+const DEFAULT_EARN_ACTIONS = {
   food:          { label: 'Food',                   emoji: '🍕', ce: 2 },
   hydration:     { label: 'Hydration',              emoji: '💧', ce: 1 },
   sleep:         { label: 'Sleep',                  emoji: '😴', ce: 2 },
@@ -51,12 +53,51 @@ const EARN_ACTIONS = {
   instructions:  { label: 'Followed Instructions',  emoji: '✅', ce: 3 },
 };
 
-const CHAOS_ACTIONS = {
+const DEFAULT_CHAOS_ACTIONS = {
   teasing:         { label: 'Teasing',                   emoji: '😏', ce: 1 },
   ignore_minor:    { label: 'Ignore Minor Instruction',  emoji: '🙈', ce: 2 },
   deliberate_push: { label: 'Deliberate Push',           emoji: '😤', ce: 3 },
   full_chaos:      { label: 'Full Chaos Moment',         emoji: '💥', ce: 5 },
 };
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_SETTINGS = {
+  partnerName: '',
+  earnCE:  {},
+  chaosCE: {},
+};
+
+let settings = DEFAULT_SETTINGS;
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      settings = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
+    }
+  } catch (e) { console.error('Settings load error:', e.message); }
+  return settings;
+}
+
+function saveSettings(data) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  settings = data;
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+}
+
+function getEarnActions() {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_EARN_ACTIONS).map(([k, v]) => [k, { ...v, ce: settings.earnCE?.[k] ?? v.ce }])
+  );
+}
+
+function getChaosActions() {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_CHAOS_ACTIONS).map(([k, v]) => [k, { ...v, ce: settings.chaosCE?.[k] ?? v.ce }])
+  );
+}
+
+loadSettings();
 
 // ── State helpers ─────────────────────────────────────────────────────────────
 
@@ -65,8 +106,8 @@ const DEFAULT_STATE = {
   dailyEarned: 0,
   overcharged: false,
   noChaos: false,
-  noChaosExpiry: null,   // null = permanent until admin releases
-  noChaosReason: null,   // 'overload' | 'catch'
+  noChaosExpiry: null,
+  noChaosReason: null,
   lastDailyReset: new Date().toDateString(),
   log: [],
 };
@@ -88,7 +129,8 @@ function saveState(s) {
 function dailyReset(s) {
   const today = new Date().toDateString();
   if (s.lastDailyReset !== today) {
-    s.dailyEarned = 0;
+    s.dailyEarned    = 0;
+    s.overcharged    = false;
     s.lastDailyReset = today;
   }
   return s;
@@ -109,7 +151,8 @@ function addLog(s, action, delta) {
   if (s.log.length > 30) s.log = s.log.slice(0, 30);
 }
 
-function getMax(s)         { return s.overcharged ? 15 : 10; }
+function getMax(s) { return s.overcharged ? 15 : 10; }
+
 function getChaosState(ce) {
   if (ce <= 3)  return { name: 'Tame Gremlin',    level: 0, emoji: '😴' };
   if (ce <= 7)  return { name: 'Stirring Trouble', level: 1, emoji: '😈' };
@@ -117,10 +160,7 @@ function getChaosState(ce) {
   return              { name: 'Menace Mode',       level: 3, emoji: '💀' };
 }
 
-function prep(s) {
-  dailyReset(s);
-  checkExpiry(s);
-}
+function prep(s) { dailyReset(s); checkExpiry(s); }
 
 function respond(res, s, extra = {}) {
   saveState(s);
@@ -129,8 +169,9 @@ function respond(res, s, extra = {}) {
     chaosState:     getChaosState(s.ce),
     max:            getMax(s),
     remainingToday: Math.max(0, getMax(s) - s.dailyEarned),
-    earnActions:    EARN_ACTIONS,
-    chaosActions:   CHAOS_ACTIONS,
+    earnActions:    getEarnActions(),
+    chaosActions:   getChaosActions(),
+    partnerName:    settings.partnerName || '',
     ...extra,
   });
 }
@@ -143,14 +184,15 @@ app.get('/api/state', (req, res) => {
 });
 
 app.post('/api/earn', requireAdmin, (req, res) => {
-  const act = EARN_ACTIONS[req.body.action];
+  const actions = getEarnActions();
+  const act     = actions[req.body.action];
   if (!act) return res.status(400).json({ error: 'Unknown action' });
 
   const s = loadState();
   prep(s);
 
-  const max      = getMax(s);
-  const canEarn  = Math.min(act.ce, max - s.dailyEarned);
+  const max     = getMax(s);
+  const canEarn = Math.min(act.ce, max - s.dailyEarned);
 
   if (canEarn <= 0) {
     return respond(res, s, { toast: '⚡ Daily CE cap reached — save your chaos for tomorrow!', toastType: 'warn' });
@@ -169,7 +211,8 @@ app.post('/api/earn', requireAdmin, (req, res) => {
 });
 
 app.post('/api/spend', requireAdmin, (req, res) => {
-  const act = CHAOS_ACTIONS[req.body.action];
+  const actions = getChaosActions();
+  const act     = actions[req.body.action];
   if (!act) return res.status(400).json({ error: 'Unknown action' });
 
   const s = loadState();
@@ -183,18 +226,17 @@ app.post('/api/spend', requireAdmin, (req, res) => {
   }
 
   if (s.ce < act.ce) {
-    // Overload
     s.ce            = 0;
     s.overcharged   = false;
     s.noChaos       = true;
-    s.noChaosExpiry = Date.now() + 60 * 60 * 1000; // 1 hour
+    s.noChaosExpiry = Date.now() + 60 * 60 * 1000;
     s.noChaosReason = 'overload';
     addLog(s, `💥 OVERLOAD! Attempted ${act.emoji} ${act.label} without enough CE. Locked for 1h.`, 0);
     return respond(res, s, { toast: '💥 OVERLOAD! CE reset to 0. No chaos for 1 hour.', toastType: 'overload', overloaded: true });
   }
 
   s.ce -= act.ce;
-  if (s.ce < 10) s.overcharged = false;
+  // Overcharge stays unlocked until daily reset or overload — spending below 10 does NOT clear it
 
   addLog(s, `${act.emoji} ${act.label} — -${act.ce} CE`, -act.ce);
   respond(res, s, { toast: `${act.emoji} ${act.label} activated! -${act.ce} CE`, toastType: 'spend' });
@@ -210,7 +252,6 @@ app.post('/api/admin/adjust', (req, res) => {
   prep(s);
   s.ce = Math.max(0, Math.min(15, s.ce + delta));
   if (s.ce >= 10 && !s.overcharged) s.overcharged = true;
-  if (s.ce < 10)  s.overcharged = false;
   addLog(s, `👑 Admin: ${delta > 0 ? '+' : ''}${delta} CE${reason ? ` — ${reason}` : ''}`, delta);
   respond(res, s, { toast: `👑 CE adjusted ${delta > 0 ? '+' : ''}${delta}`, toastType: 'admin' });
 });
@@ -223,6 +264,7 @@ app.post('/api/admin/set-ce', (req, res) => {
   prep(s);
   s.ce          = Math.max(0, Math.min(15, Math.round(ce)));
   s.overcharged = s.ce >= 10;
+  s.dailyEarned = 0;
   addLog(s, `👑 Admin: CE set to ${s.ce}`, 0);
   respond(res, s, { toast: `👑 CE set to ${s.ce}`, toastType: 'admin' });
 });
@@ -231,9 +273,8 @@ app.post('/api/admin/catch', (req, res) => {
   const s = loadState();
   prep(s);
   s.noChaos       = true;
-  s.noChaosExpiry = null; // permanent until released
+  s.noChaosExpiry = null;
   s.noChaosReason = 'catch';
-  s.overcharged   = false;
   addLog(s, '🛑 CATCH MOMENT — admin ended chaos phase', 0);
   respond(res, s, { toast: '🛑 Chaos caught! Locked until admin releases.', toastType: 'admin' });
 });
@@ -251,9 +292,32 @@ app.post('/api/admin/release', (req, res) => {
 app.post('/api/admin/reset-daily', (req, res) => {
   const s = loadState();
   s.dailyEarned    = 0;
+  s.overcharged    = false;
   s.lastDailyReset = new Date().toDateString();
   addLog(s, '👑 Admin: daily earn counter reset', 0);
   respond(res, s, { toast: '👑 Daily counter reset!', toastType: 'admin' });
+});
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+app.get('/api/settings', requireAdmin, (req, res) => {
+  res.json({
+    partnerName:         settings.partnerName || '',
+    earnCE:              settings.earnCE  || {},
+    chaosCE:             settings.chaosCE || {},
+    defaultEarnActions:  DEFAULT_EARN_ACTIONS,
+    defaultChaosActions: DEFAULT_CHAOS_ACTIONS,
+  });
+});
+
+app.post('/api/settings', requireAdmin, (req, res) => {
+  const { partnerName, earnCE, chaosCE } = req.body;
+  saveSettings({
+    partnerName: String(partnerName || '').trim().slice(0, 40),
+    earnCE:  earnCE  || {},
+    chaosCE: chaosCE || {},
+  });
+  res.json({ ok: true, toast: '✅ Settings saved!', toastType: 'admin' });
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

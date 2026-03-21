@@ -440,7 +440,7 @@
 <div class="page">
 
   <header>
-    <div class="logo">🔥 Chaos Gremlin System</div>
+    <div class="logo" id="logoText">🔥 Chaos Gremlin System</div>
     <div class="tagline">Spend it. Don't save it. Cause chaos.</div>
   </header>
 
@@ -520,6 +520,8 @@
       <button class="admin-btn" onclick="adminResetDaily()">🔄 Reset Daily</button>
       <button class="admin-btn danger" onclick="adminSetCE(0)">⬜ Set CE → 0</button>
     </div>
+    <div style="border-top:1px solid var(--border);margin:10px 0 14px"></div>
+    <a href="/settings.html" class="admin-btn" style="display:block;text-align:center;text-decoration:none">⚙ Settings</a>
   </div>
 
 </div>
@@ -566,7 +568,10 @@
     currentData = data;
 
     const { ce, max, chaosState, overcharged, noChaos, noChaosExpiry, noChaosReason,
-            dailyEarned, remainingToday, log, earnActions, chaosActions } = data;
+            dailyEarned, remainingToday, log, earnActions, chaosActions, partnerName } = data;
+
+    const logoEl = document.getElementById('logoText');
+    logoEl.textContent = partnerName ? `🔥 ${partnerName}'s Chaos` : '🔥 Chaos Gremlin System';
 
     const level = chaosState.level;
     const color = LEVEL_COLORS[level];

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Settings — Chaos Gremlin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0c0817;
+    --surface:    #150f28;
+    --surface2:   #1e1538;
+    --border:     #2d1f50;
+    --text:       #e2d4f8;
+    --muted:      #6b5a8e;
+    --tame:       #4ade80;
+    --chaos:      #f97316;
+    --menace:     #ef4444;
+    --purple:     #a855f7;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    font-weight: 500;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(168,85,247,0.02) 40px, rgba(168,85,247,0.02) 41px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; padding: 0 16px; }
+
+  header {
+    padding: 20px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .back-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .back-btn:hover { border-color: var(--purple); color: var(--purple); }
+
+  .logo {
+    font-family: 'Bangers', cursive;
+    font-size: 1.8rem;
+    letter-spacing: 0.06em;
+    background: linear-gradient(135deg, #a855f7, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-family: 'Bangers', cursive;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* PIN prompt */
+  .pin-prompt { text-align: center; }
+  .pin-prompt p { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+
+  .pin-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  input[type="password"], input[type="text"], input[type="number"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  input:focus { border-color: var(--purple); }
+
+  #pinInput {
+    font-family: 'Bangers', cursive;
+    font-size: 1.5rem;
+    letter-spacing: 0.3em;
+    text-align: center;
+  }
+
+  .pin-error { color: #fca5a5; font-size: 0.8rem; margin-top: 8px; display: none; }
+
+  /* Settings form */
+  #settingsForm { display: none; }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .field-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .field-emoji { font-size: 1.2rem; }
+
+  .field-default { color: var(--muted); font-size: 0.75rem; margin-left: auto; }
+
+  input[type="number"].ce-input {
+    width: 70px;
+    flex: 0 0 70px;
+    text-align: center;
+    font-size: 1.1rem;
+    padding: 8px 10px;
+  }
+
+  .earn-input { border-color: rgba(74,222,128,0.3); }
+  .earn-input:focus { border-color: var(--tame); }
+
+  .chaos-input { border-color: rgba(249,115,22,0.3); }
+  .chaos-input:focus { border-color: var(--chaos); }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  .save-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--purple), #7c3aed);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: 'Bangers', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.1em;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 4px;
+  }
+  .save-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .save-btn:active { transform: scale(0.98); }
+
+  .submit-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .submit-btn:hover { border-color: var(--purple); }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-120%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.admin { border-color: var(--purple); color: #d8b4fe; }
+  #toast.error { border-color: var(--menace); color: #fca5a5; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <a href="/" class="back-btn">← Back</a>
+    <div class="logo">⚙ Settings</div>
+  </header>
+
+  <!-- PIN prompt -->
+  <div class="card" id="pinCard">
+    <div class="card-title">Admin Access</div>
+    <div class="pin-prompt">
+      <p>Enter your admin PIN to edit settings.</p>
+      <div class="pin-row">
+        <input type="password" inputmode="numeric" maxlength="6" id="pinInput"
+          placeholder="····" onkeydown="if(event.key==='Enter')submitPin()">
+        <button class="submit-btn" onclick="submitPin()">▶</button>
+      </div>
+      <div class="pin-error" id="pinError">Wrong PIN — try again.</div>
+    </div>
+  </div>
+
+  <!-- Settings form (shown after auth) -->
+  <div id="settingsForm">
+
+    <div class="card">
+      <div class="card-title">🏷 Display Name</div>
+      <input type="text" id="partnerName" placeholder="e.g. Gremlin, Trouble, Pip…" maxlength="40">
+      <div style="color:var(--muted);font-size:0.78rem;margin-top:6px">Shown in the header on the main screen.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⬆ Earn CE Values</div>
+      <div id="earnFields"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💥 Chaos Action Costs</div>
+      <div id="chaosFields"></div>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">💾 Save Settings</button>
+
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let adminPin = sessionStorage.getItem('cgAdminPin') || null;
+  let defaults = {};
+
+  // Auto-attempt with stored PIN
+  if (adminPin) verifyPin(adminPin);
+
+  function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  async function submitPin() {
+    const pin = document.getElementById('pinInput').value.trim();
+    await verifyPin(pin);
+  }
+
+  async function verifyPin(pin) {
+    const res  = await fetch('/api/admin/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      adminPin = pin;
+      sessionStorage.setItem('cgAdminPin', pin);
+      document.getElementById('pinCard').style.display = 'none';
+      document.getElementById('settingsForm').style.display = 'block';
+      loadSettings();
+    } else {
+      document.getElementById('pinError').style.display = 'block';
+      document.getElementById('pinInput').value = '';
+    }
+  }
+
+  async function loadSettings() {
+    const res  = await fetch('/api/settings', { headers: { 'X-Admin-Pin': adminPin } });
+    if (res.status === 401) { adminPin = null; sessionStorage.removeItem('cgAdminPin'); location.reload(); return; }
+    const data = await res.json();
+    defaults = data;
+
+    document.getElementById('partnerName').value = data.partnerName || '';
+
+    buildFields('earnFields',  data.defaultEarnActions,  data.earnCE,  'earn');
+    buildFields('chaosFields', data.defaultChaosActions, data.chaosCE, 'chaos');
+  }
+
+  function buildFields(containerId, actions, overrides, type) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (const [key, act] of Object.entries(actions)) {
+      const current = overrides?.[key] ?? act.ce;
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      row.innerHTML = `
+        <span class="field-label">
+          <span class="field-emoji">${act.emoji}</span>
+          ${act.label}
+          <span class="field-default">(default: ${act.ce})</span>
+        </span>
+        <input type="number" class="ce-input ${type}-input" data-key="${key}" data-type="${type}"
+          value="${current}" min="0" max="15" step="1">`;
+      container.appendChild(row);
+    }
+  }
+
+  async function saveSettings() {
+    const partnerName = document.getElementById('partnerName').value.trim();
+
+    const earnCE  = {};
+    const chaosCE = {};
+
+    document.querySelectorAll('.ce-input[data-type="earn"]').forEach(el => {
+      earnCE[el.dataset.key] = parseInt(el.value) || 0;
+    });
+    document.querySelectorAll('.ce-input[data-type="chaos"]').forEach(el => {
+      chaosCE[el.dataset.key] = parseInt(el.value) || 0;
+    });
+
+    const res  = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': adminPin },
+      body: JSON.stringify({ partnerName, earnCE, chaosCE }),
+    });
+
+    if (res.status === 401) { showToast('⛔ Session expired', 'error'); return; }
+    const data = await res.json();
+    if (data.ok) showToast('✅ Settings saved!', 'admin');
+  }
+</script>
+</body>
+</html>
