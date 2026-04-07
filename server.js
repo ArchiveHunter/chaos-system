@@ -322,5 +322,36 @@ app.post('/api/settings', requireAdmin, (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
+// ── Scheduled midnight reset ──────────────────────────────────────────────────
+
+function scheduledDailyReset() {
+  const s = loadState();
+  s.ce             = 0;
+  s.dailyEarned    = 0;
+  s.overcharged    = false;
+  s.lastDailyReset = new Date().toDateString();
+  addLog(s, '🌙 Automatic midnight reset — daily counter cleared', 0);
+  saveState(s);
+  console.log('[chaos-gremlin] Midnight reset complete');
+}
+
+function scheduleMidnightReset() {
+  const now  = new Date();
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0); // next midnight local time
+  const msUntilMidnight = next - now;
+
+  setTimeout(() => {
+    scheduledDailyReset();
+    scheduleMidnightReset(); // recalculate next midnight rather than fixed interval
+  }, msUntilMidnight);
+
+  console.log(`[chaos-gremlin] Midnight reset scheduled in ${Math.round(msUntilMidnight / 60000)} minutes`);
+}
+
+scheduleMidnightReset();
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
 const PORT = process.env.PORT || 3050;
 app.listen(PORT, () => console.log(`🔥 Chaos Gremlin running on http://0.0.0.0:${PORT}`));
